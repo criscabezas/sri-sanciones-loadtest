@@ -24,7 +24,15 @@ function intEnv(clave, porDefecto) {
 const MARGIN_MS = intEnv('TOKEN_REFRESH_MARGIN_S', 60) * 1000;
 const JITTER_MS = intEnv('TOKEN_REFRESH_JITTER_S', 30) * 1000;
 
-const TOKEN_URL = __ENV.TOKEN_URL;
+const BASE_URL = (__ENV.BASE_URL || '').replace(/\/+$/, '');
+
+// En produccion el Keycloak cuelga del mismo host que la app, asi que el token
+// URL se deriva de BASE_URL. TOKEN_URL explicito sobreescribe la derivacion si
+// el realm llegara a vivir en otro host.
+// El slash inicial se normaliza: un TOKEN_PATH mal escrito no debe producir una
+// URL concatenada invalida que se manifieste como un error de red opaco.
+const TOKEN_PATH = '/' + (__ENV.TOKEN_PATH || 'auth/realms/Internet/protocol/openid-connect/token').replace(/^\/+/, '');
+const TOKEN_URL = __ENV.TOKEN_URL || (BASE_URL ? BASE_URL + TOKEN_PATH : '');
 const CLIENT_ID = __ENV.CLIENT_ID;
 const USUARIO = __ENV.SRI_USER;
 const PASSWORD = __ENV.SRI_PASS;
@@ -51,7 +59,9 @@ function paramsBase() {
 function credenciales() {
   if (!TOKEN_URL || !CLIENT_ID || !USUARIO || !PASSWORD) {
     throw new Error(
-      'Faltan variables de entorno: se requieren TOKEN_URL, CLIENT_ID, SRI_USER y SRI_PASS. ' +
+      'Faltan variables de entorno: se requieren BASE_URL (o TOKEN_URL), CLIENT_ID, ' +
+      'SRI_USER y SRI_PASS. El token URL se deriva de BASE_URL + TOKEN_PATH; ' +
+      'TOKEN_URL lo sobreescribe si el realm esta en otro host. ' +
       'Copia .env.example a .env y completalo. Nunca corras el load test sin token.'
     );
   }

@@ -28,8 +28,7 @@ run.ps1                 wrapper con pre-flight y archivado del summary
 
 ```powershell
 Copy-Item .env.example .env
-# Editar .env: SRI_USER, SRI_PASS, y confirmar TOKEN_URL (¿10.12.4.61 por VPN
-# o hay URL pública?).
+# Editar .env: SRI_USER y SRI_PASS. El token URL se deriva solo de BASE_URL.
 ```
 
 1. **Capturar el payload real del POST**: en el ambiente de pruebas, con la
@@ -56,7 +55,8 @@ Copy-Item .env.example .env
 |---|---|---|
 | `BASE_URL` | `https://srienlinea.sri.gob.ec` | host, parametrizado |
 | `CONTEXT_PATH` | `/sri-sanciones-servicio-internet` | confirmar con la URL real |
-| `TOKEN_URL` | `10.12.4.61` (VPN) | ver Open Question 3 |
+| `TOKEN_PATH` | `/auth/realms/Internet/protocol/openid-connect/token` | |
+| `TOKEN_URL` | derivado de `BASE_URL` | solo si el realm está en otro host |
 | `CLIENT_ID` | `app-sri-declaraciones-web-internet_cfcg` | |
 | `RAMP_UP` / `VUS_RAMP` | `30s` / `20` | |
 | `SOSTEN` / `VUS_MAX` | `2m` / `50` | |
@@ -147,10 +147,13 @@ Métricas propias: `auth_logins`, `auth_refreshes`, `auth_errors`,
 
 1. ¿Cuál es el código correcto cuando el GET no tiene datos: 200 con lista
    vacía o 404? Define `OK_GET_STATUSES`.
-2. ¿Keycloak rota el refresh token en el realm `Internet`? (dos refresh
+2. ~~¿El `TOKEN_URL` público es el de `10.12.4.61` (VPN) o hay equivalente
+   público?~~ **Resuelta**: el realm cuelga del mismo host de producción.
+   `TOKEN_URL` se deriva de `BASE_URL + TOKEN_PATH`; k6 no necesita VPN.
+3. ¿Keycloak rota el refresh token en el realm `Internet`? (dos refresh
    seguidos con el mismo token; si el 2º da `invalid_grant`, hay rotación.)
-3. ¿El `TOKEN_URL` público es el de `10.12.4.61` (VPN) o hay equivalente
-   público? De esto depende si k6 necesita red interna.
+   **Mitigación ya implementada**: cada VU tiene su propio token y el fallback
+   a re-login, verificado contra un Keycloak simulado con rotation activa.
 4. ¿El context path en producción es `/sri-sanciones-servicio-internet`?
 5. ¿A partir de qué RPS el servicio degrada? Define hasta dónde escalar y si se
    pide el barrido progresivo.
@@ -166,7 +169,8 @@ Métricas propias: `auth_logins`, `auth_refreshes`, `auth_errors`,
    proactivo con jitter + `Counter auth_errors`.
 4. **Refresh token rotation en Keycloak 18+** — si rota, un refresh
    compartido se invalida mutuamente. Mitigación: cada VU tiene su propio
-   token y el fallback a re-login.
+   token y el fallback a re-login. Verificado contra un Keycloak simulado con
+   rotation activa.
 5. **WAF / rate limit** — puede cortar la IP del generador y falsear
    resultados. Mitigación: paso 6; tratar 403/429 como hallazgo.
 6. **Datos sensibles** — `data/*.json` solo con datos ficticios; el cuerpo del

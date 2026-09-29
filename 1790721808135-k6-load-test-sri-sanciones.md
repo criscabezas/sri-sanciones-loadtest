@@ -73,7 +73,8 @@ D:\dev\perf\sri-sanciones-loadtest\
    ```dotenv
    BASE_URL=https://srienlinea.sri.gob.ec
    CONTEXT_PATH=/sri-sanciones-servicio-internet
-   TOKEN_URL=http://10.12.4.61/auth/realms/Internet/protocol/openid-connect/token
+   TOKEN_PATH=/auth/realms/Internet/protocol/openid-connect/token
+   TOKEN_URL=   # vacio: se deriva de BASE_URL (mismo host en produccion)
    CLIENT_ID=app-sri-declaraciones-web-internet_cfcg
    SRI_USER=
    SRI_PASS=
@@ -120,6 +121,6 @@ Reporte corto: objetivo, entorno y ventana autorizada, configuración, tabla de 
 ## Open Questions (resolver antes de la corrida de carga)
 1. ¿Cuál es el código de respuesta "correcto" cuando el GET no tiene datos: 200 con lista vacía o 404? Define el check.
 2. ¿Keycloak rota el refresh token en el realm `Internet`? (refresh dos veces con el mismo token; si el 2º devuelve `invalid_grant`, está activo la rotación).
-3. ¿El `TOKEN_URL` público es el de `10.12.4.61` (VPN) o hay URL pública equivalente? De esto depende si k6 necesita acceso a la red interna.
+3. ~~¿El `TOKEN_URL` público es el de `10.12.4.61` (VPN) o hay URL pública equivalente?~~ **RESUELTA**: el realm cuelga del mismo host de producción. `TOKEN_URL` se deriva de `BASE_URL + TOKEN_PATH`; k6 no necesita acceso a la red interna.
 4. ¿El context path en producción es `/sri-sanciones-servicio-internet`? Confirmar con la URL real del navegador.
 5. ¿A partir de qué RPS el servicio degrada? (define hasta dónde tiene sentido escalar y si se pide el barrido progresivo).
