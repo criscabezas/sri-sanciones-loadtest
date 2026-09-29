@@ -1,0 +1,22 @@
+{
+  "_nota": "PLANTILLA. Sustituir por el body real copiado del navegador (DevTools > red > peticion multaDeclaracion > Copy as fetch > extraer body). Sanear RUC, nombres, correos y codigos antes de commitear.",
+  "_capturar": {
+    "paso": "F12 > Network > filtrar 'multaDeclaracion' > click en la peticion > Payload > Copy as fetch; extraer el body del string body:",
+    "sanear": "RUC ficticio (1799999999000), nombres/apellidos ficticios, correo ficticio (@example.test), codigos de=value con datos de prueba"
+  },
+  "ruc": "1799999999000",
+  "tipoPersona": "01",
+  "tipoContribuyente": "01",
+  "codigoSancion": "01",
+  "formaPago": "01",
+  "periodo": "2024",
+  "anio": "2024",
+  "mes": "12",
+  "dia": "31",
+  "valor": "100.50",
+  "valorPagado": "100.50",
+  "numeroComprobante": "000-000-000000001",
+  "fechaPago": "31/12/2024",
+  "observacion": "Registro de prueba de carga - datos ficticios",
+  "email": "prueba@example.test"
+}

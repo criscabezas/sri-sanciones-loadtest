@@ -1,0 +1,15 @@
+# Credenciales reales: NUNCA versionar
+.env
+.env.*
+!.env.example
+
+# Resultados de corrida
+results/
+
+# Payload capturado del navegador: puede contener datos reales sin sanear
+data/*capturado*.json
+data/*.capturado.json
+data/*raw*.json
+
+node_modules/
+.DS_Store

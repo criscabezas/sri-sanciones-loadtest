@@ -1,0 +1,11 @@
+{
+  "_nota": "REEMPLAZAR con combinaciones reales de fecha/valor tomadas del ambiente de pruebas. Datos ficticios de ejemplo. La rotacion de 5-8 casos evita que p95 mida cache de BD en vez de consulta real.",
+  "casos": [
+    { "etiqueta": "2024-01-15 / 100.50", "dia": "15", "mes": "01", "anio": "2024", "valor": "100.50" },
+    { "etiqueta": "2024-03-31 / 250.00", "dia": "31", "mes": "03", "anio": "2024", "valor": "250.00" },
+    { "etiqueta": "2024-06-30 / 480.75", "dia": "30", "mes": "06", "anio": "2024", "valor": "480.75" },
+    { "etiqueta": "2024-09-15 / 1000.00", "dia": "15", "mes": "09", "anio": "2024", "valor": "1000.00" },
+    { "etiqueta": "2024-12-31 / 3750.20", "dia": "31", "mes": "12", "anio": "2024", "valor": "3750.20" },
+    { "etiqueta": "2025-02-28 / 62.10", "dia": "28", "mes": "02", "anio": "2025", "valor": "62.10" }
+  ]
+}
