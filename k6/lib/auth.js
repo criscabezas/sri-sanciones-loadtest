@@ -13,8 +13,16 @@ export const authRefreshes = new Counter('auth_refreshes');
 export const authLogins = new Counter('auth_logins');
 export const authRefreshDuration = new Trend('auth_refresh_duration', true);
 
-const MARGIN_MS = (parseInt(__ENV.TOKEN_REFRESH_MARGIN_S || '60', 10) || 60) * 1000;
-const JITTER_MS = (parseInt(__ENV.TOKEN_REFRESH_JITTER_S || '30', 10) || 30) * 1000;
+// `parseInt(x || def)` convierte un 0 legitimo en el default: un margen de 0
+// se transformaba silenciosamente en 60 s. Se separa undefined de 0.
+function intEnv(clave, porDefecto) {
+  if (__ENV[clave] === undefined || __ENV[clave] === '') return porDefecto;
+  const v = parseInt(__ENV[clave], 10);
+  return isNaN(v) ? porDefecto : v;
+}
+
+const MARGIN_MS = intEnv('TOKEN_REFRESH_MARGIN_S', 60) * 1000;
+const JITTER_MS = intEnv('TOKEN_REFRESH_JITTER_S', 30) * 1000;
 
 const TOKEN_URL = __ENV.TOKEN_URL;
 const CLIENT_ID = __ENV.CLIENT_ID;

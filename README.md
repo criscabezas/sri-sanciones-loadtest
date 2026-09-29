@@ -107,6 +107,13 @@ Métricas propias: `auth_logins`, `auth_refreshes`, `auth_errors`,
 ## Interpretation del reporte
 
 1. Abrir `results/summary-<ts>.json` y la tabla final de k6.
+   **Nota k6 >= 2.x**: el `--summary-export` aplana los valores, no hay un
+   nivel `values` intermedio. Es `metrics.http_reqs.count`, no
+   `metrics.http_reqs.values.count`. Los contadores que quedaron en cero
+   (`auth_errors`, `rate_limited_429`, `req_fallidas`) **no aparecen** en el
+   archivo; su ausencia es la señal de que no ocurrieron, no un dato faltante.
+   Los percentiles van en claves con paréntesis, incomodables de leer en
+   PowerShell: usar `jq` o el reporte de consola.
 2. **Veredicto por endpoint**: p50/p95/p99/max contra los umbrales. El veredicto
    es el peor de los dos endpoints, no el promedio.
 3. **Error rate** de `http_req_failed` descompuesto por tag. Si

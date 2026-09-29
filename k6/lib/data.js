@@ -4,8 +4,10 @@
 // a partir de ahi el objeto queda serializado en la instancia del VU y las
 // funciones exportadas corren en el contexto de VU sin volver a tocar disco.
 
-const CASOS_PATH = __ENV.CASOS_PATH || '../data/interes-casos.json';
-const POSTA_PATH = __ENV.POSTA_PATH || '../data/multaDeclaracion.json';
+// `open()` resuelve relativo al archivo que lo invoca (este modulo, k6/lib/),
+// no al entrypoint. Por eso el doble ../ desde aqui.
+const CASOS_PATH = __ENV.CASOS_PATH || '../../data/interes-casos.json';
+const POSTA_PATH = __ENV.POSTA_PATH || '../../data/multaDeclaracion.json';
 
 function leerJson(path, etiqueta) {
   let crudo;
@@ -14,7 +16,7 @@ function leerJson(path, etiqueta) {
   } catch (e) {
     throw new Error(
       'No se pudo abrir ' + path + ' (' + etiqueta + '). ' +
-      'Verifica la ruta relativa al script k6/ y que el archivo exista.'
+      'La ruta es relativa a k6/lib/data.js; sobreescribela con CASOS_PATH o POSTA_PATH.'
     );
   }
   try {

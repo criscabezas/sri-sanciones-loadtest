@@ -5,7 +5,10 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
-import { exec } from 'k6/execution';
+// Solo existe el default export de k6/execution. El named `{ exec }` es
+// undefined en k6 2.x y rompe en tiempo de ejecucion con
+// "Cannot read property 'scenario' of undefined".
+import exec from 'k6/execution';
 
 import { ensureToken, authHeader, getEstado, validarCredenciales } from './lib/auth.js';
 import {
