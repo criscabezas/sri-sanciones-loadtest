@@ -29,17 +29,19 @@ function leerJson(path, etiqueta) {
 const casosDoc = leerJson(CASOS_PATH, 'casos de consulta de interes');
 const casos = Array.isArray(casosDoc) ? casosDoc : casosDoc.casos || [];
 
-const postTemplateRaw = leerJson(POSTA_PATH, 'body de multaDeclaracion');
+// El body del POST se carga perezoso: una corrida solo-GET (ENABLE_POST=0) no
+// debe depender de un archivo que no se va a usar ni de haber capturado el
+// payload real del navegador.
+let postTemplate = null;
 
-function sanearTemplate(doc) {
+function cargarPostTemplate() {
+  const doc = leerJson(POSTA_PATH, 'body de multaDeclaracion');
   const out = {};
   Object.keys(doc).forEach(function (k) {
     if (k.charAt(0) !== '_') out[k] = doc[k];
   });
   return out;
 }
-
-const postTemplate = sanearTemplate(postTemplateRaw);
 
 // --- Diagnosticos de sesgo (se consultan desde smoke/setup y se imprimen una vez) ---
 let avisos = [];
@@ -71,6 +73,7 @@ export function getCasos() {
 }
 
 export function getPostTemplate() {
+  if (postTemplate === null) postTemplate = cargarPostTemplate();
   return postTemplate;
 }
 
@@ -96,9 +99,10 @@ export function interesPath(caso) {
 // El body del POST se deriva de la plantilla + overrides de __ENV para poder
 // variar fechas/valor sin editar el JSON en cada corrida.
 export function construirBodyPost() {
+  const plantilla = getPostTemplate();
   const body = {};
-  Object.keys(postTemplate).forEach(function (k) {
-    body[k] = postTemplate[k];
+  Object.keys(plantilla).forEach(function (k) {
+    body[k] = plantilla[k];
   });
 
   const overrides = [

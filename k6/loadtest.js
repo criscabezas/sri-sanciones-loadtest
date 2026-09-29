@@ -39,7 +39,10 @@ function estadosOK(clave, porDefecto) {
 const OK_GET = estadosOK('OK_GET_STATUSES', '200');
 const OK_POST = estadosOK('OK_POST_STATUSES', '200');
 const THINK_TIME = num('THINK_TIME', 0);
-const ENABLE_POST = (__ENV.ENABLE_POST || '1') !== '0';
+// Solo-GET por defecto: la corrida de interes no ejercita la escritura.
+// Habilitar ENABLE_POST=1 solo despues de verificar que el POST no persiste
+// (pre-flight paso 4).
+const ENABLE_POST = (__ENV.ENABLE_POST || '0') !== '0';
 
 const rate429 = new Counter('rate_limited_429');
 const reqFallas = new Counter('req_fallidas');
@@ -48,27 +51,33 @@ const reqFallas = new Counter('req_fallidas');
 // propio duplicaria la memoria sin agregar informacion.
 const postDuration = new Trend('post_multaDeclaracion_duration', true);
 
+// Un threshold sobre un endpoint que nunca se llama queda sin datos y no dice
+// nada; se declara solo si el POST se va a ejercitar.
+const thresholds = {
+  http_req_failed: ['rate<' + num('MAX_ERR_RATE', 0.01)],
+  'http_req_duration{endpoint:interes}': [
+    'p(95)<' + num('P95_MAX_MS', 2000),
+    'p(99)<' + num('P99_MAX_MS', 5000),
+  ],
+  checks: ['rate>' + num('MIN_CHECK_RATE', 0.99)],
+  // Los 401/403 no son "error" del servicio: se aíslan para no mezclar una
+  // falla de token con una falla real del backend.
+  'http_req_duration{endpoint:token}': ['p(95)<3000'],
+};
+if (ENABLE_POST) {
+  thresholds['http_req_duration{endpoint:multaDeclaracion}'] = [
+    'p(95)<' + num('P95_MAX_MS', 2000),
+    'p(99)<' + num('P99_MAX_MS', 5000),
+  ];
+}
+
 export const options = {
   stages: [
     { duration: __ENV.RAMP_UP || '30s', target: num('VUS_RAMP', 20) },
     { duration: __ENV.SOSTEN || '2m', target: num('VUS_MAX', 50) },
     { duration: __ENV.RAMP_DOWN || '30s', target: 0 },
   ],
-  thresholds: {
-    http_req_failed: ['rate<' + num('MAX_ERR_RATE', 0.01)],
-    'http_req_duration{endpoint:interes}': [
-      'p(95)<' + num('P95_MAX_MS', 2000),
-      'p(99)<' + num('P99_MAX_MS', 5000),
-    ],
-    'http_req_duration{endpoint:multaDeclaracion}': [
-      'p(95)<' + num('P95_MAX_MS', 2000),
-      'p(99)<' + num('P99_MAX_MS', 5000),
-    ],
-    checks: ['rate>' + num('MIN_CHECK_RATE', 0.99)],
-    // Los 401/403 no son "error" del servicio: se aíslan para no mezclar una
-    // falla de token con una falla real del backend.
-    'http_req_duration{endpoint:token}': ['p(95)<3000'],
-  },
+  thresholds: thresholds,
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
 };
 

@@ -70,7 +70,7 @@ export default function () {
     'GET interes status esperado': (r) => OK_GET.indexOf(r.status) !== -1,
   });
 
-  if ((__ENV.ENABLE_POST || '1') === '0') {
+  if ((__ENV.ENABLE_POST || '0') === '0') {
     console.log('### ENABLE_POST=0: se omite el POST');
     return;
   }
@@ -92,5 +92,9 @@ export default function () {
 }
 
 export function teardown() {
+  if ((__ENV.ENABLE_POST || '0') === '0') {
+    console.log('### Smoke finalizado. Alcance: solo GET interes (ENABLE_POST=0).');
+    return;
+  }
   console.log('### Smoke finalizado. Copia el cuerpo real del POST y reemplaza data/multaDeclaracion.json.');
 }
