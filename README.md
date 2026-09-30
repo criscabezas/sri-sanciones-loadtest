@@ -31,17 +31,36 @@ Copy-Item .env.example .env
 # Editar .env: SRI_USER y SRI_PASS. El token URL se deriva solo de BASE_URL.
 ```
 
-1. **Capturar el payload real del POST**: en el ambiente de pruebas, con la
-   sesión del usuario de pruebas, DevTools → red → petición `multaDeclaracion`
-   → *Copy as fetch* → extraer el body a `data/multaDeclaracion.json`.
-   **Sanear** (LOPD): RUC ficticio, nombres, correos y códigos.
+> **Alcance actual: solo el GET `interes`.** `ENABLE_POST=0` es el valor por
+> defecto y no requiere `data/multaDeclaracion.json`. Habilitar el POST exige
+> haber verificado antes que no persiste.
+
+1. **Capturar el payload real del POST** (fuera de alcance actual): en el
+   ambiente de pruebas, con la sesión del usuario de pruebas, DevTools → red →
+   petición `multaDeclaracion` → *Copy as fetch* → extraer el body a
+   `data/multaDeclaracion.json`. **Sanear** (LOPD): RUC ficticio, nombres,
+   correos y códigos.
 2. **Cargar 5-8 casos reales** en `data/interes-casos.json`. Con un solo caso,
    p95 mide caché de BD y no consulta real; `data.js` emite un warning.
+
+## Credenciales
+
+`SRI_USER` debe ser una **cuenta de pruebas**, no la cédula de una persona.
+aunque el request sea GET, la carga queda registrada en auditoría del lado del
+SRI y 50 VU en lazo cerrado contra una cuenta real es ruido que alguien tiene
+que explicar después.
+
+Si el login devuelve `invalid_grant / Invalid user credentials` con un
+`client_id` válido, el problema es la credencial, no el harness: se puede
+confirmar comparando contra un `client_id` falso (ese sí devuelve
+`unauthorized_client`). Causas frecuentes: contraseña vencida en Keycloak
+(marca `Update Password` / `Set Password` en la consola de administración) o
+cuenta bloqueada por intentos fallidos.
 
 ## Ejecución
 
 ```powershell
-.\run.ps1 smoke          # 1 VU, imprime cuerpos completos de GET y POST
+.\run.ps1 smoke          # 1 VU, valida auth, ruta y contrato del GET
 .\run.ps1 carga          # escenario completo con el perfil de .env
 .\run.ps1 carga -Vus 30 -Sosten 2m -ThinkTime 1
 .\run.ps1 calibracion    # 2 VU / 30 s: verifica que el refresh no se dispara
