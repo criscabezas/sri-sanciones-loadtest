@@ -85,40 +85,76 @@ if ($RampDown)   { $vars['RAMP_DOWN'] = $RampDown }
 if ($ThinkTime -ge 0) { $vars['THINK_TIME'] = "$ThinkTime" }
 if ($BaseUrl)    { $vars['BASE_URL'] = $BaseUrl }
 
-# --- Calculo de RPS para que el operador lo vea antes de disparar ------------
-if ($Modo -eq 'carga' -and -not $vars.ContainsKey('THINK_TIME')) {
-    $tt = [double]((Get-Content -LiteralPath $envFile | Where-Object { $_ -match '^\s*THINK_TIME=' } | Select-Object -First 1) -replace '^\s*THINK_TIME=', '').Trim()
-    if ($tt -is [double] -and $tt -gt 0) {
-        Warn "RPS estimado ~= VU / (latencia 0.2s + think ${tt}s). Verificar contra lo autorizado."
-    } else {
-        Warn 'Lazo cerrado (THINK_TIME=0): RPS ~= VU / latencia. 50 VU a 200ms => ~250 RPS. Si excede lo acordado, usa -ThinkTime 1.'
+# k6 2.x elimino `--env-from-file`: la unica via es `-e VAR=valor`. El .env se
+# parsea aqui y se pasa como flags. Los overrides de este script (o de la CLI)
+# ganan sobre lo que este en el archivo.
+$envVars = @{}
+foreach ($linea in Get-Content -LiteralPath $envFile) {
+    $l = $linea.Trim()
+    if ($l -eq '' -or $l.StartsWith('#')) { continue }
+    if ($l -notmatch '^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') { continue }
+    $clave = $Matches[1]
+    $valor = $Matches[2].Trim()
+    # Comillas envolventes opcionales, sin interpretacion de escapes.
+    if ($valor.Length -ge 2 -and
+        (($valor.StartsWith('"') -and $valor.EndsWith('"')) -or
+         ($valor.StartsWith("'") -and $valor.EndsWith("'")))) {
+        $valor = $valor.Substring(1, $valor.Length - 2)
     }
+    $envVars[$clave] = $valor
 }
 
+# --- Calculo de RPS para que el operador lo vea antes de disparar ------------
 $results = Join-Path $root 'results'
 if (-not (Test-Path -LiteralPath $results)) { New-Item -ItemType Directory -Path $results | Out-Null }
 
 $ts = Get-Date -Format 'yyyyMMdd-HHmmss'
-$k6Args = @()
+$k6Args = @('run')
 switch ($Modo) {
-    'smoke'       { $script = 'k6\smoke.js';    $out = $null }
-    'carga'       { $script = 'k6\loadtest.js'; $out = Join-Path $results "summary-$ts.json" }
+    'smoke'       { $script = 'k6/smoke.js';    $out = $null }
+    'carga'       { $script = 'k6/loadtest.js'; $out = Join-Path $results "summary-$ts.json" }
     'calibracion' {
         # 2 VU / 30 s: verifica que el refresh NO se dispara durante el tramo.
-        $script = 'k6\loadtest.js'
+        $script = 'k6/loadtest.js'
         $vars['RAMP_UP'] = '5s'; $vars['VUS_RAMP'] = '2'
         $vars['SOSTEN'] = '30s'; $vars['VUS_MAX'] = '2'
         $vars['RAMP_DOWN'] = '5s'
         $out = Join-Path $results "summary-calib-$ts.json"
     }
 }
+
+# Los overrides del modo se aplican DESPUES de elegir el modo: antes, el perfil
+# de calibracion se perdia contra lo que estuviera en .env y la corrida salia
+# con los VU de produccion.
+foreach ($k in $vars.Keys) { $envVars[$k] = $vars[$k] }
+
+# --- Calculo de RPS para que el operador lo vea antes de disparar ------------
+# Despues de la fusion, para leer el THINK_TIME y los VU finales.
+if ($Modo -eq 'carga') {
+    $tt = 0.0
+    [double]::TryParse($envVars['THINK_TIME'], [ref]$tt) | Out-Null
+    $vu = 0
+    [int]::TryParse($envVars['VUS_MAX'], [ref]$vu) | Out-Null
+    if ($tt -gt 0) {
+        Warn "Lazo semi-cerrado: THINK_TIME=${tt}s con $vu VU. RPS ~= $vu / (latencia 0.2s + ${tt}s). Verificar contra lo autorizado."
+    } else {
+        Warn "Lazo cerrado (THINK_TIME=0): RPS ~= $vu / latencia. $vu VU a 200ms => ~$([int]($vu / 0.2)) RPS. Si excede lo acordado, usa -ThinkTime 1."
+    }
+}
+
 if ($out) { $k6Args += @('--summary-export', $out) }
-$k6Args += @('--env-from-file=.env')
-foreach ($k in $vars.Keys) { $k6Args += @('-e', "$k=$($vars[$k])") }
-$k6Args += $script
+foreach ($k in ($envVars.Keys | Sort-Object)) { $k6Args += @('-e', "$k=$($envVars[$k])") }
+# Path absoluto: el script se resuelve contra el directorio actual, no contra la
+# raiz del repo. Asi run.ps1 funciona desde donde se llame.
+$k6Args += (Join-Path $root ($script -replace '/', '\'))
 
 Info "Modo: $Modo"
-Info "k6 $($k6Args -join ' ')"
+# El password no debe quedar en la consola ni en un log de sesion: se muestra
+# enmascarado en el log, pero se pasa en claro a k6.
+$mostrar = $k6Args | ForEach-Object {
+    if ($_ -match '^(SRI_PASS)=(.*)$') { "$($Matches[1])=<oculto>" } else { $_ }
+}
+Info "k6 $($mostrar -join ' ')"
 Info 'Umbrales: p95<2s, p99<5s, error<1%, checks>99%. Ctrl+C si p95>5s, error>5%, o hay 403/429.'
 
 & $k6.Source @k6Args
